@@ -1,72 +1,70 @@
 #!/usr/bin/python3
-''' Clase FileStorage que serializa instancias en un archivo JSON y
-deserializa un archivo JSON en instancias '''
+"""
+Contains the FileStorage class
+"""
 
 import json
-from models.base_model import BaseModel
-from models.user import User
 from models.amenity import Amenity
+from models.base_model import BaseModel
 from models.city import City
 from models.place import Place
 from models.review import Review
 from models.state import State
+from models.user import User
 
-
-date = {"BaseModel": BaseModel, "User": User, "State": State,
-        "Place": Place, "City": City, "Amenity": Amenity, "Review": Review}
+classes = {"Amenity": Amenity, "BaseModel": BaseModel, "City": City,
+           "Place": Place, "Review": Review, "State": State, "User": User}
 
 
 class FileStorage:
-    ''' Clase que gestiona el almacenamiento de modelos
-        hbnb en formato JSON '''
-    # cadena: ruta al archivo JSON
+    """serializes instances to a JSON file & deserializes back to instances"""
+
+    # string - path to the JSON file
     __file_path = "file.json"
-    # diccionario - vacío
+    # dictionary - empty but will store all objects by <class name>.id
     __objects = {}
 
-    def all(self):
-        ''' Devuelve el diccionario __objects '''
-        return FileStorage.__objects
+    def all(self, cls=None):
+        """returns the dictionary __objects"""
+        if cls is not None:
+            new_dict = {}
+            for key, value in self.__objects.items():
+                if cls == value.__class__ or cls == value.__class__.__name__:
+                    new_dict[key] = value
+            return new_dict
+        return self.__objects
 
     def new(self, obj):
-        ''' establece en __objects el obj con la clave <obj class name>.id '''
-        # Almacenará todos los objetos por <nombre de clase>.id
-        # Ej. Para almacenar un objeto BaseModel con id = 12121212,
-        # la clave será BaseModel.12121212
-        key = obj.__class__.__name__ + "." + obj.id
-        self.__objects[key] = obj
+        """sets in __objects the obj with key <obj class name>.id"""
+        if obj is not None:
+            key = obj.__class__.__name__ + "." + obj.id
+            self.__objects[key] = obj
 
     def save(self):
-        ''' Serializa __objects en el archivo JSON (ruta: __file_path) '''
-        dic_obj = {}
-        # Operación de escritura:
-        # Creo el archivo json donde se almacenara la información a serializar
-        with open(self.__file_path, "w", encoding="utf-8") as f:
-            # Recorro los valores ingresados
-            for key, value in self.__objects.items():
-                # Asigno el valor al dic_obj en su clave
-                dic_obj[key] = value.to_dict()
-                # Convierte los objetos de Python en objetos json apropiados
-                # para almacenarse en un archivo
-            json.dump(dic_obj, f)
+        """serializes __objects to the JSON file (path: __file_path)"""
+        json_objects = {}
+        for key in self.__objects:
+            json_objects[key] = self.__objects[key].to_dict()
+        with open(self.__file_path, 'w') as f:
+            json.dump(json_objects, f)
 
     def reload(self):
-        '''
-        Deserializa el archivo JSON a __objects
-        (solo si el archivo JSON (__file_path) existe; de ​​lo contrario,
-        si el archivo no existe, no se debe generar ninguna excepción)
-        '''
+        """deserializes the JSON file to __objects"""
         try:
-            # Operación de lectura:
-            # Se abre el archivo para lectura
-            with open(self.__file_path, 'r', encoding='UTF-8') as f:
-                # Se deserializa el archivo
-                j_dic = json.load(f)
-            # Se recorre el contenido del archivo deserializado
-            for key in j_dic:
-                value = date[j_dic[key]["__class__"]](**j_dic[key])
-                # Establece los nuevos valores del objeto
-                self.__objects[key] = value
-        # Se genera cuando se solicita un archivo o directorio pero no existe
-        except FileNotFoundError:
+            with open(self.__file_path, 'r') as f:
+                jo = json.load(f)
+            for key in jo:
+                self.__objects[key] = classes[jo[key]["__class__"]](**jo[key])
+        except:
             pass
+
+    def delete(self, obj=None):
+        """delete obj from __objects if it’s inside"""
+        if obj is not None:
+            key = obj.__class__.__name__ + '.' + obj.id
+            if key in self.__objects:
+                del self.__objects[key]
+
+    def close(self):
+        """call reload() method for deserializing the JSON file to objects"""
+        self.reload()
